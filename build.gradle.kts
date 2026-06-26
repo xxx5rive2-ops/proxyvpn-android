@@ -1,4 +1,3 @@
-// Root build file — configuration applied to all subprojects via convention plugins
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
@@ -8,9 +7,6 @@ plugins {
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.hilt) apply false
-    alias(libs.plugins.detekt) apply false
-    alias(libs.plugins.ktlint) apply false
-    alias(libs.plugins.junit5.android) apply false
 }
 
 // Project-wide properties
@@ -23,15 +19,8 @@ extra["applicationId"] = "app.netguard.pro"
 
 tasks.register("cleanAll") {
     description = "Clean all modules"
-    dependsOn(gradle.includedBuilds.map { it.task(":clean") })
+    group = "build"
     subprojects.forEach { subproject ->
         subproject.tasks.findByName("clean")?.let { dependsOn(it) }
     }
-}
-
-// Aggregate test report
-tasks.register("testAll") {
-    description = "Run all unit tests"
-    group = "verification"
-    dependsOn(subprojects.mapNotNull { it.tasks.findByName("test") })
 }

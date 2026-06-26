@@ -21,8 +21,6 @@ dependencies {
     compileOnly(libs.plugins.kotlin.compose.toDep())
     compileOnly(libs.plugins.ksp.toDep())
     compileOnly(libs.plugins.hilt.toDep())
-    compileOnly(libs.plugins.detekt.toDep())
-    compileOnly(libs.plugins.ktlint.toDep())
 }
 
 fun Provider<PluginDependency>.toDep() = map {

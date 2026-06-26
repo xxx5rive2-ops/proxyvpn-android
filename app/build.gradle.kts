@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
-    alias(libs.plugins.junit5.android)
 }
 
 android {
@@ -18,35 +17,12 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
-        testInstrumentationRunner = "app.netguard.pro.test.HiltTestRunner"
-        testInstrumentationRunnerArguments["runnerBuilder"] =
-            "de.mannodermaus.junit5.AndroidJUnit5Builder"
         multiDexEnabled = true
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "VERSION_NAME", "\"${versionName}\"")
         buildConfigField("int", "VERSION_CODE", "${versionCode}")
-        buildConfigField("String", "BUILD_TYPE", "\"${buildType}\"")
-    }
-
-    signingConfigs {
-        create("release") {
-            // In CI: loaded from environment variables
-            // Locally: keystore.properties file
-            val keystoreFile = rootProject.file("keystore.properties")
-            if (keystoreFile.exists()) {
-                val props = java.util.Properties().apply { load(keystoreFile.reader()) }
-                storeFile = rootProject.file(props["storeFile"] as String)
-                storePassword = props["storePassword"] as String
-                keyAlias = props["keyAlias"] as String
-                keyPassword = props["keyPassword"] as String
-            } else {
-                // CI environment variables
-                storeFile = System.getenv("KEYSTORE_FILE")?.let { file(it) }
-                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-                keyAlias = System.getenv("KEY_ALIAS") ?: ""
-                keyPassword = System.getenv("KEY_PASSWORD") ?: ""
-            }
-        }
     }
 
     buildTypes {
@@ -62,29 +38,24 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             isDebuggable = false
-            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
             buildConfigField("boolean", "ENABLE_LOGGING", "false")
             buildConfigField("boolean", "ENABLE_STRICT_MODE", "false")
-        }
-        create("benchmark") {
-            initWith(buildTypes.getByName("release"))
-            matchingFallbacks += listOf("release")
-            signingConfig = signingConfigs.getByName("debug")
-            isDebuggable = false
+            // Signing handled via -P flags in CI or keystore.properties locally
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 
-    // Universal APK + per-ABI APKs
+    // Universal APK + per-ABI splits
     splits {
         abi {
             isEnable = true
             reset()
             include("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
-            isUniversalApk = true  // Universal APK that runs on all ABIs
+            isUniversalApk = true
         }
     }
 
@@ -124,7 +95,6 @@ android {
                 test.maxHeapSize = "2g"
             }
         }
-        animationsDisabled = true
     }
 
     lint {
@@ -138,13 +108,11 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
             excludes += "/META-INF/LICENSE*"
-            excludes += "/*.proto"
         }
     }
 }
 
 dependencies {
-    // Desugaring for Java 8+ APIs on older Android
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 
     // Core modules
@@ -178,7 +146,7 @@ dependencies {
     implementation(libs.androidx.splashscreen)
     implementation(libs.androidx.startup)
 
-    // Compose
+    // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.bundles.compose)
     implementation(libs.androidx.navigation.compose)
@@ -191,6 +159,9 @@ dependencies {
     implementation(libs.hilt.work)
     ksp(libs.hilt.compiler)
 
+    // WorkManager
+    implementation(libs.androidx.work.runtime)
+
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
@@ -198,15 +169,17 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.datetime)
 
-    // Logging (debug only in release — Timber)
+    // Logging
     implementation(libs.timber)
 
     // Testing
-    testImplementation(libs.bundles.testing.unit)
+    testImplementation(libs.junit5.api)
+    testImplementation(libs.junit5.params)
     testRuntimeOnly(libs.junit5.engine)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotest.assertions)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
     androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.bundles.testing.android)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.hilt.android)
-    androidTestAnnotationProcessor(libs.hilt.compiler)
 }

@@ -18,9 +18,6 @@ import app.netguard.pro.BuildConfig
  * - Logging setup (Timber)
  * - Notification channels registration
  * - StrictMode configuration for debug builds
- *
- * This class intentionally does minimal work — heavy initialization
- * is deferred to feature modules and startup initializers.
  */
 @HiltAndroidApp
 class NetGuardApplication : Application() {
@@ -38,8 +35,6 @@ class NetGuardApplication : Application() {
         if (BuildConfig.ENABLE_LOGGING) {
             Timber.plant(Timber.DebugTree())
         } else {
-            // In release builds: plant a crash-reporting tree
-            // (no-op until crash reporting is configured)
             Timber.plant(ReleaseCrashTree())
         }
         Timber.i("NetGuard Pro ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) starting")
@@ -51,10 +46,10 @@ class NetGuardApplication : Application() {
 
             val vpnChannel = NotificationChannel(
                 CHANNEL_VPN_SERVICE,
-                getString(R.string.notification_channel_vpn),
+                getString(app.netguard.pro.R.string.notification_channel_vpn),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = getString(R.string.notification_channel_vpn_desc)
+                description = getString(app.netguard.pro.R.string.notification_channel_vpn_desc)
                 setShowBadge(false)
                 enableLights(false)
                 enableVibration(false)
@@ -99,14 +94,8 @@ class NetGuardApplication : Application() {
     }
 }
 
-/**
- * Timber tree for release builds.
- * Strips debug/verbose logs, keeps errors for potential crash reporting.
- */
 private class ReleaseCrashTree : Timber.Tree() {
     override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
-        // In production: send to crash reporter (e.g., Firebase Crashlytics)
-        // Currently: silently discard all logs for privacy
-        // TODO: Integrate crash reporter with user consent
+        // Production: integrate crash reporter with user consent
     }
 }

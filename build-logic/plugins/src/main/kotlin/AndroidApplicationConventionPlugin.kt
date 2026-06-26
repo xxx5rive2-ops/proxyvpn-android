@@ -9,12 +9,10 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             with(pluginManager) {
                 apply("com.android.application")
                 apply("org.jetbrains.kotlin.android")
-                apply("io.gitlab.arturbosch.detekt")
-                apply("org.jlleitschuh.gradle.ktlint")
             }
             extensions.configure<ApplicationExtension> {
                 configureKotlinAndroid(this)
-                defaultConfig.targetSdk = rootProject.extra["targetSdk"] as Int
+                defaultConfig.targetSdk = 35
                 buildTypes {
                     getByName("release") {
                         isMinifyEnabled = true
@@ -24,12 +22,7 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                             "proguard-rules.pro"
                         )
                     }
-                    getByName("debug") {
-                        applicationIdSuffix = ".debug"
-                        isDebuggable = true
-                    }
                 }
-                // Universal APK + per-ABI splits
                 splits {
                     abi {
                         isEnable = true
@@ -37,11 +30,6 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                         include("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
                         isUniversalApk = true
                     }
-                }
-                bundle {
-                    abi { enableSplit = true }
-                    density { enableSplit = true }
-                    language { enableSplit = false }
                 }
             }
         }
