@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wordmark placeholder — full wordmark rendered in Compose -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="40dp"
+    android:viewportWidth="200"
+    android:viewportHeight="40">
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M10,8 L10,32 L14,32 L14,22 L26,22 L26,18 L14,18 L14,12 L28,12 L28,8 Z"/>
+</vector>

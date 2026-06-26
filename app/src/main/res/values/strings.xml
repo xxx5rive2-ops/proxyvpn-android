@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NetGuard Pro</string>
+    <string name="app_description">Next-generation Android traffic routing platform</string>
+    <string name="tile_label">NetGuard Pro</string>
+    <string name="notification_channel_vpn">VPN Service</string>
+    <string name="notification_channel_vpn_desc">Shows VPN connection status</string>
+    <string name="notification_vpn_connected">NetGuard Pro active</string>
+    <string name="notification_vpn_connecting">Connecting…</string>
+    <string name="notification_vpn_disconnected">NetGuard Pro disconnected</string>
+    <string name="vpn_permission_title">VPN Permission Required</string>
+    <string name="vpn_permission_message">NetGuard Pro needs VPN permission to route traffic</string>
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="settings">Settings</string>
+    <string name="rules">Rules</string>
+    <string name="servers">Proxy Servers</string>
+    <string name="traffic">Traffic</string>
+    <string name="diagnostics">Diagnostics</string>
+    <string name="dashboard">Dashboard</string>
+    <string name="add_server">Add Server</string>
+    <string name="add_rule">Add Rule</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="apply">Apply</string>
+    <string name="error_vpn_permission_denied">VPN permission was denied. Please allow NetGuard Pro to create a VPN connection.</string>
+    <string name="error_vpn_start_failed">Failed to start VPN service. Please try again.</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_connecting">Connecting…</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_error">Error</string>
+    <string name="kill_switch">Kill Switch</string>
+    <string name="kill_switch_desc">Block all traffic when VPN is disconnected</string>
+    <string name="auto_connect">Auto Connect</string>
+    <string name="auto_connect_desc">Connect automatically on startup</string>
+    <string name="bypass_lan">Bypass LAN</string>
+    <string name="bypass_lan_desc">Allow direct access to local network</string>
+    <string name="dns_over_https">DNS over HTTPS</string>
+    <string name="fake_ip_mode">Fake-IP Mode</string>
+    <string name="fake_ip_mode_desc">Use virtual IPs for domain-based routing</string>
+    <string name="content_description_shield_icon">NetGuard Pro shield icon</string>
+    <string name="content_description_connection_status">Connection status indicator</string>
+</resources>

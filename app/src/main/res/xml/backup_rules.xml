@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backup rules — explicitly exclude sensitive data from cloud backup.
+    Credentials and keystore data must NEVER be backed up.
+-->
+<full-backup-content>
+    <!-- Allow backup of non-sensitive settings -->
+    <include domain="sharedpref" path="app_preferences.xml" />
+    <include domain="sharedpref" path="ui_preferences.xml" />
+
+    <!-- EXCLUDE sensitive data — credentials, keys, logs -->
+    <exclude domain="sharedpref" path="credentials.xml" />
+    <exclude domain="sharedpref" path="proxy_servers.xml" />
+    <exclude domain="database" path="netguard.db" />
+    <exclude domain="file" path="logs/" />
+    <exclude domain="file" path="keystore/" />
+    <exclude domain="external" path="." />
+</full-backup-content>

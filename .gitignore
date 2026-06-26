@@ -1,0 +1,49 @@
+# Android build outputs
+*.iml
+.gradle/
+local.properties
+.idea/
+*.DS_Store
+build/
+**/build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Keystore — NEVER commit to version control
+keystore.properties
+*.jks
+*.keystore
+*.p12
+
+# Secrets
+*.env
+.env.*
+secrets/
+
+# Test results
+test-results/
+jacoco/
+
+# Gradle wrapper jar (committed separately via GitHub Actions)
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.iws
+.vscode/
+nbproject/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Generated
+app/src/main/assets/databases/
+**/generated/

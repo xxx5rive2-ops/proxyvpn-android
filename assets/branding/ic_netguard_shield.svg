@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 108 108" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shield_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1565C0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#003c8f;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="inner_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00838F;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#006064;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="glow_grad" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" style="stop-color:#64B5F6;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#1565C0;stop-opacity:0" />
+    </linearGradient>
+    <filter id="glow_filter">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="54" cy="54" r="54" fill="#0D1117"/>
+
+  <!-- Shield outer shape -->
+  <path d="M54 14 L82 26 L82 52 C82 68 68 80 54 86 C40 80 26 68 26 52 L26 26 Z"
+        fill="url(#shield_grad)"
+        stroke="#1E88E5" stroke-width="1.5"/>
+
+  <!-- Shield inner shape -->
+  <path d="M54 22 L76 32 L76 52 C76 64 65 74 54 79 C43 74 32 64 32 52 L32 32 Z"
+        fill="#0D1117"/>
+
+  <!-- Network grid lines (cyber aesthetic) -->
+  <line x1="36" y1="52" x2="72" y2="52" stroke="#1565C0" stroke-width="0.8" stroke-opacity="0.4"/>
+  <line x1="54" y1="34" x2="54" y2="76" stroke="#1565C0" stroke-width="0.8" stroke-opacity="0.4"/>
+  <line x1="39" y1="39" x2="69" y2="65" stroke="#1565C0" stroke-width="0.5" stroke-opacity="0.3"/>
+  <line x1="69" y1="39" x2="39" y2="65" stroke="#1565C0" stroke-width="0.5" stroke-opacity="0.3"/>
+
+  <!-- Central eye / radar element -->
+  <!-- Outer ring -->
+  <circle cx="54" cy="52" r="14" fill="none" stroke="url(#inner_grad)" stroke-width="2.5"/>
+  <!-- Middle ring -->
+  <circle cx="54" cy="52" r="9" fill="none" stroke="#00ACC1" stroke-width="1.5" stroke-opacity="0.7"/>
+  <!-- Inner core — glowing dot -->
+  <circle cx="54" cy="52" r="5" fill="url(#inner_grad)"/>
+  <!-- Core highlight -->
+  <circle cx="54" cy="52" r="2.5" fill="#E0F7FA" fill-opacity="0.9"/>
+
+  <!-- Routing arrows — signal paths -->
+  <!-- Left arrow -->
+  <path d="M36 47 L44 52 L36 57" fill="none" stroke="#42A5F5" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8"/>
+  <!-- Right arrow -->
+  <path d="M72 47 L64 52 L72 57" fill="none" stroke="#42A5F5" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8"/>
+
+  <!-- Top signal dots -->
+  <circle cx="54" cy="35" r="2" fill="#1E88E5" fill-opacity="0.9"/>
+  <circle cx="47" cy="37" r="1.5" fill="#1E88E5" fill-opacity="0.6"/>
+  <circle cx="61" cy="37" r="1.5" fill="#1E88E5" fill-opacity="0.6"/>
+
+  <!-- Bottom connection line -->
+  <path d="M46 66 C46 66 50 70 54 70 C58 70 62 66 62 66"
+        fill="none" stroke="#00ACC1" stroke-width="1.8" stroke-linecap="round" stroke-opacity="0.7"/>
+
+  <!-- Shield top highlight -->
+  <path d="M54 14 L82 26 L82 32 C82 32 68 24 54 22 C40 24 26 32 26 32 L26 26 Z"
+        fill="#64B5F6" fill-opacity="0.15"/>
+</svg>

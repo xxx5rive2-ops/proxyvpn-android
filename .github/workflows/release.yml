@@ -1,0 +1,92 @@
+name: Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version name (e.g. 1.0.0)'
+        required: true
+
+env:
+  JAVA_VERSION: '17'
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
+          cat > keystore.properties << PROPS
+          storeFile=../../keystore.jks
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          PROPS
+
+      - name: Build Release APKs (Universal + per-ABI)
+        run: |
+          ./gradlew assembleRelease
+          ./gradlew bundleRelease
+
+      - name: List build outputs
+        run: find app/build/outputs -name "*.apk" -o -name "*.aab" | sort
+
+      - name: Sign APK (verify)
+        run: |
+          for apk in app/build/outputs/apk/release/*.apk; do
+            echo "Verifying: $apk"
+            $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose "$apk"
+          done
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          VERSION=${GITHUB_REF_NAME:-v${{ github.event.inputs.version }}}
+          NOTES=$(git log --oneline $(git describe --tags --abbrev=0 HEAD^)..HEAD 2>/dev/null || git log --oneline -20)
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "## NetGuard Pro ${VERSION}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### Changes" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### Build Artifacts" >> $GITHUB_OUTPUT
+          echo "- Universal APK (runs on all architectures)" >> $GITHUB_OUTPUT
+          echo "- arm64-v8a APK (64-bit ARM — most modern phones)" >> $GITHUB_OUTPUT
+          echo "- armeabi-v7a APK (32-bit ARM — older phones)" >> $GITHUB_OUTPUT
+          echo "- x86_64 APK (64-bit x86 — emulators, some Chromebooks)" >> $GITHUB_OUTPUT
+          echo "- Android App Bundle (AAB) for Play Store" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "NetGuard Pro ${{ github.ref_name }}"
+          body: ${{ steps.release_notes.outputs.notes }}
+          draft: false
+          prerelease: false
+          files: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
