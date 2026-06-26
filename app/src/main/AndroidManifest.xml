@@ -29,7 +29,7 @@
         tools:ignore="ProtectedPermissions" />
 
     <application
-        android:name=".NetGuardApplication"
+        android:name="app.netguard.NetGuardApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -46,7 +46,7 @@
 
         <!-- Main Activity -->
         <activity
-            android:name=".ui.MainActivity"
+            android:name="app.netguard.ui.MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
             android:theme="@style/Theme.NetGuardPro.Splash"
@@ -64,7 +64,7 @@
 
         <!-- VPN Service — core component -->
         <service
-            android:name=".engine.NetGuardVpnService"
+            android:name="app.netguard.engine.NetGuardVpnService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
             android:permission="android.permission.BIND_VPN_SERVICE"
@@ -79,7 +79,7 @@
 
         <!-- Boot receiver for auto-start -->
         <receiver
-            android:name=".receiver.BootReceiver"
+            android:name="app.netguard.receiver.BootReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
@@ -89,7 +89,7 @@
 
         <!-- Tile service for Quick Settings -->
         <service
-            android:name=".tile.NetGuardTileService"
+            android:name="app.netguard.tile.NetGuardTileService"
             android:exported="true"
             android:icon="@drawable/ic_tile_shield"
             android:label="@string/tile_label"

@@ -113,7 +113,7 @@ android {
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     // Core modules
     implementation(project(":core:core-common"))

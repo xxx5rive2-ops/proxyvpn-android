@@ -8,16 +8,11 @@ import android.os.StrictMode
 import androidx.core.content.getSystemService
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
+import app.netguard.pro.R
 import app.netguard.pro.BuildConfig
 
 /**
  * NetGuard Pro — Application class.
- *
- * Responsibilities:
- * - Dependency injection initialization (Hilt)
- * - Logging setup (Timber)
- * - Notification channels registration
- * - StrictMode configuration for debug builds
  */
 @HiltAndroidApp
 class NetGuardApplication : Application() {
@@ -37,7 +32,7 @@ class NetGuardApplication : Application() {
         } else {
             Timber.plant(ReleaseCrashTree())
         }
-        Timber.i("NetGuard Pro ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) starting")
+        Timber.i("NetGuard Pro ${BuildConfig.VERSION_NAME} starting")
     }
 
     private fun registerNotificationChannels() {
@@ -46,10 +41,10 @@ class NetGuardApplication : Application() {
 
             val vpnChannel = NotificationChannel(
                 CHANNEL_VPN_SERVICE,
-                getString(app.netguard.pro.R.string.notification_channel_vpn),
+                getString(R.string.notification_channel_vpn),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = getString(app.netguard.pro.R.string.notification_channel_vpn_desc)
+                description = getString(R.string.notification_channel_vpn_desc)
                 setShowBadge(false)
                 enableLights(false)
                 enableVibration(false)
@@ -60,32 +55,23 @@ class NetGuardApplication : Application() {
                 CHANNEL_ALERTS,
                 "Alerts",
                 NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "Important alerts from NetGuard Pro"
-                setShowBadge(true)
-            }
+            )
 
             manager.createNotificationChannels(listOf(vpnChannel, alertChannel))
-            Timber.d("Notification channels registered")
         }
     }
 
     private fun enableStrictMode() {
         StrictMode.setThreadPolicy(
-            StrictMode.ThreadPolicy.Builder()
-                .detectAll()
-                .penaltyLog()
-                .build()
+            StrictMode.ThreadPolicy.Builder().detectAll().penaltyLog().build()
         )
         StrictMode.setVmPolicy(
             StrictMode.VmPolicy.Builder()
                 .detectLeakedSqlLiteObjects()
                 .detectLeakedClosableObjects()
-                .detectActivityLeaks()
                 .penaltyLog()
                 .build()
         )
-        Timber.d("StrictMode enabled")
     }
 
     companion object {
@@ -95,7 +81,5 @@ class NetGuardApplication : Application() {
 }
 
 private class ReleaseCrashTree : Timber.Tree() {
-    override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
-        // Production: integrate crash reporter with user consent
-    }
+    override fun log(priority: Int, tag: String?, message: String, t: Throwable?) { }
 }
