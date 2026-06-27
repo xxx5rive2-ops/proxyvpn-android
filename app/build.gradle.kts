@@ -169,6 +169,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.datetime)
 
+    // Material Design (required for XML themes — Theme.Material3.*)
+    implementation(libs.material)
+
     // Logging
     implementation(libs.timber)
 

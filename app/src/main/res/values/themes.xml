@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Main app theme — inherits Material3 DayNight -->
     <style name="Theme.NetGuardPro" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/brand_primary</item>
         <item name="colorOnPrimary">@color/white</item>
@@ -10,10 +11,10 @@
         <item name="android:windowLightStatusBar">false</item>
     </style>
 
+    <!-- Splash screen theme (androidx.core:core-splashscreen) -->
     <style name="Theme.NetGuardPro.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_shield</item>
-        <item name="windowSplashScreenBrandingImage">@drawable/ic_splash_wordmark</item>
         <item name="postSplashScreenTheme">@style/Theme.NetGuardPro</item>
     </style>
 </resources>

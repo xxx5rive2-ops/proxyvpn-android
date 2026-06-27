@@ -47,6 +47,7 @@ uiautomator = "2.3.0"
 
 # Security
 bouncycastle = "1.79"
+material = "1.12.0"
 desugar = "2.1.4"
 
 # Code Quality
@@ -120,6 +121,7 @@ retrofit-kotlinx-serialization = { group = "com.squareup.retrofit2", name = "con
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 
 # Security / Crypto
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 bouncycastle-provider = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
 desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar" }
 
