@@ -14,17 +14,16 @@ kotlin {
 }
 
 dependencies {
-    compileOnly(libs.plugins.android.application.toDep())
-    compileOnly(libs.plugins.android.library.toDep())
-    compileOnly(libs.plugins.kotlin.android.toDep())
-    compileOnly(libs.plugins.kotlin.jvm.toDep())
-    compileOnly(libs.plugins.kotlin.compose.toDep())
-    compileOnly(libs.plugins.ksp.toDep())
-    compileOnly(libs.plugins.hilt.toDep())
-}
-
-fun Provider<PluginDependency>.toDep() = map {
-    "${it.pluginId}:${it.pluginId}.gradle.plugin:${it.version}"
+    // AGP — Android Gradle Plugin
+    compileOnly("com.android.tools.build:gradle:8.7.3")
+    // Kotlin Gradle Plugin
+    compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0")
+    // KSP
+    compileOnly("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:2.1.0-1.0.29")
+    // Hilt
+    compileOnly("com.google.dagger:hilt-android-gradle-plugin:2.54")
+    // Kotlin Compose
+    compileOnly("org.jetbrains.kotlin:compose-compiler-gradle-plugin:2.1.0")
 }
 
 gradlePlugin {
