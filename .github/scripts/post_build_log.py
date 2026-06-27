@@ -1,64 +1,79 @@
 #!/usr/bin/env python3
-"""Post build log to GitHub Release for API access."""
+"""Post build log errors to GitHub Release."""
 import json, os, sys, urllib.request, re
 
 log_file = '/tmp/build.log'
 try:
-    log = open(log_file).read()
+    log = open(log_file, errors='replace').read()
 except Exception as e:
-    log = f'No build log found: {e}'
+    log = f'No build log: {e}'
 
 lines = log.splitlines()
 
-# Strategy 1: Find Kotlin compiler 'e:' error lines (most specific)
-kotlin_err_lines = [(i, l) for i, l in enumerate(lines)
-    if re.match(r'^e:\s+.+\.kt:', l) or 'error:' in l]
+# Method 1: Kotlin compiler 'e:' lines (exact format)
+# Pattern: "e: file.kt:line:col: error: message"
+kotlin_errors = []
+for i, line in enumerate(lines):
+    # Remove timestamp prefix if present
+    clean = re.sub(r'^\d{4}-\d{2}-\d{2}T[\d:.+]+\s+\[.*?\]\s+', '', line)
+    if re.match(r'^e:\s', clean) or re.match(r'^.*\.kt:\d+:\d+:\s+error:', clean):
+        ctx = lines[max(0,i-1):min(len(lines),i+5)]
+        kotlin_errors.append('\n'.join(ctx))
 
-if kotlin_err_lines:
-    first_idx = kotlin_err_lines[0][0]
-    snippet_lines = []
-    for idx, line in kotlin_err_lines[:20]:
-        ctx_start = max(0, idx - 1)
-        ctx_end = min(len(lines), idx + 5)
-        snippet_lines.extend(lines[ctx_start:ctx_end])
-        snippet_lines.append('---')
-    snippet = '\n'.join(snippet_lines)
+if kotlin_errors:
+    snippet = '\n---\n'.join(kotlin_errors[:20])
 else:
-    # Strategy 2: FAILURE section
-    fail_idx = next((i for i, l in enumerate(lines)
-        if 'BUILD FAILED' in l or 'FAILURE: Build' in l or '> A failure occurred' in l), None)
-    if fail_idx is not None:
-        snippet = '\n'.join(lines[max(0, fail_idx - 10): fail_idx + 80])
+    # Method 2: Look for Kotlin error reporter output
+    reporter_errors = []
+    for i, line in enumerate(lines):
+        if 'KotlinCompileDaemonClient' in line and ('error:' in line.lower()):
+            reporter_errors.extend(lines[max(0,i-1):i+5])
+    
+    if reporter_errors:
+        snippet = '\n'.join(reporter_errors[:100])
     else:
-        snippet = '\n'.join(lines[-120:])
+        # Method 3: Text around FAILURE
+        fail_idx = next((i for i, l in enumerate(lines) 
+            if 'BUILD FAILED' in l or 'Compilation error' in l), None)
+        if fail_idx:
+            # Search backwards for any error context
+            error_ctx = []
+            for l in lines[max(0,fail_idx-200):fail_idx+20]:
+                clean = re.sub(r'^\d{4}-\d{2}-\d{2}T[\d:.+]+\s+\[\w+\]\s+\[.*?\]\s+', '', l)
+                if clean.strip() and 'DEBUG' not in l:
+                    error_ctx.append(clean)
+            snippet = '\n'.join(error_ctx[-80:])
+        else:
+            snippet = '\n'.join(
+                re.sub(r'^\d{4}-\d{2}-\d{2}T[\d:.+]+\s+\[.*?\]\s+', '', l)
+                for l in lines[-80:]
+                if '[DEBUG]' not in l
+            )
 
 run_num = os.environ.get('RUN_NUM', '?')
-repo = os.environ.get('REPO', '')
-token = os.environ.get('GH_TOKEN', '')
+repo    = os.environ.get('REPO', '')
+token   = os.environ.get('GH_TOKEN', '')
 
-tag = f'build-log-{run_num}'
-body = f'## Build Log — Run #{run_num}\n\n### Kotlin errors:\n```\n{snippet[:60000]}\n```'
-
+body = f'## Run #{run_num} — engine-proxy:compileDebugKotlin\n\n```\n{snippet[:60000]}\n```'
 payload = json.dumps({
-    'tag_name': tag,
-    'name': f'[LOG] Run #{run_num}',
-    'body': body,
-    'draft': True,
-    'prerelease': True
+    'tag_name'   : f'build-log-{run_num}',
+    'name'       : f'[LOG] Run #{run_num}',
+    'body'       : body,
+    'draft'      : True,
+    'prerelease' : True,
 }).encode()
 
 req = urllib.request.Request(
     f'https://api.github.com/repos/{repo}/releases',
     data=payload,
-    headers={
-        'Authorization': f'token {token}',
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.github+json'
-    }
-)
+    headers={'Authorization': f'token {token}',
+             'Content-Type': 'application/json',
+             'Accept': 'application/vnd.github+json'})
 try:
     resp = urllib.request.urlopen(req)
     d = json.loads(resp.read())
-    print(f'Release created: id={d.get("id")} tag={d.get("tag_name")}')
+    print(f'Release: id={d.get("id")} tag={d.get("tag_name")}')
 except Exception as e:
-    print(f'Error creating release: {e}', file=sys.stderr)
+    print(f'Release error: {e}', file=sys.stderr)
+    try: print(e.read().decode(), file=sys.stderr)
+    except: pass
