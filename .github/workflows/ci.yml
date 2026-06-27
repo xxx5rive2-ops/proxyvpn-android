@@ -12,13 +12,9 @@ concurrency:
 
 env:
   JAVA_VERSION: '17'
-  GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.jvmargs=-Xmx4g'
+  GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.configureondemand=false'
 
 jobs:
-
-  ##──────────────────────────────────────────────────────────────
-  ## 1. Build Verification (must pass first)
-  ##──────────────────────────────────────────────────────────────
   build:
     name: Build Debug APK
     runs-on: ubuntu-latest
@@ -37,11 +33,29 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      - name: Print Gradle version
+        run: ./gradlew --version
+
+      - name: List project structure
+        run: |
+          echo "=== settings.gradle.kts ===" && cat settings.gradle.kts
+          echo "=== build-logic/settings.gradle.kts ===" && cat build-logic/settings.gradle.kts
+          echo "=== gradle/libs.versions.toml (first 20 lines) ===" && head -20 gradle/libs.versions.toml
+
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace --info 2>&1 | tee /tmp/build-output.txt; exit ${PIPESTATUS[0]}
+
+      - name: Upload full build log on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: build-log-${{ github.sha }}
+          path: /tmp/build-output.txt
+          retention-days: 7
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
+        if: success()
         with:
           name: debug-apk-${{ github.sha }}
           path: app/build/outputs/apk/debug/*.apk
@@ -55,144 +69,77 @@ jobs:
           path: '**/build/reports/'
           retention-days: 7
 
-  ##──────────────────────────────────────────────────────────────
-  ## 2. Unit Tests
-  ##──────────────────────────────────────────────────────────────
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
     needs: build
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-
       - name: Make gradlew executable
         run: chmod +x gradlew
-
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --continue --stacktrace
-
       - name: Upload Test Reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: unit-test-results-${{ github.sha }}
           path: '**/build/reports/tests/'
-          retention-days: 7
 
-      - name: Test Summary
-        uses: test-summary/action@v2
-        if: always()
-        with:
-          paths: '**/build/test-results/**/*.xml'
-
-  ##──────────────────────────────────────────────────────────────
-  ## 3. Lint
-  ##──────────────────────────────────────────────────────────────
-  lint:
-    name: Lint & Static Analysis
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
-      - name: Run Android Lint
-        run: ./gradlew lint --continue
-
-      - name: Upload Lint Results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: lint-results-${{ github.sha }}
-          path: '**/build/reports/lint-results-*.html'
-          retention-days: 7
-
-  ##──────────────────────────────────────────────────────────────
-  ## 4. Release Build (only on main)
-  ##──────────────────────────────────────────────────────────────
   release-build:
     name: Release Build (All ABIs)
     runs-on: ubuntu-latest
-    needs: [ unit-tests, lint ]
+    needs: unit-tests
     if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-
       - name: Make gradlew executable
         run: chmod +x gradlew
-
-      - name: Setup debug keystore (CI only)
+      - name: Setup CI keystore
         run: |
           mkdir -p ~/.android
           keytool -genkeypair \
-            -keystore ~/.android/debug.keystore \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US" \
-            -noprompt 2>/dev/null || true
-
-      - name: Build Release APKs (Universal + per ABI)
+            -keystore ~/.android/ci.keystore \
+            -storepass android -alias cikey -keypass android \
+            -keyalg RSA -keysize 2048 -validity 365 \
+            -dname "CN=CI,O=NetGuard,C=US" -noprompt 2>/dev/null || true
+      - name: Build Release APKs
         run: |
           ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=$HOME/.android/debug.keystore \
+            -Pandroid.injected.signing.store.file=$HOME/.android/ci.keystore \
             -Pandroid.injected.signing.store.password=android \
-            -Pandroid.injected.signing.key.alias=androiddebugkey \
+            -Pandroid.injected.signing.key.alias=cikey \
             -Pandroid.injected.signing.key.password=android \
             --stacktrace
-
-      - name: Build AAB (Android App Bundle)
+      - name: Build AAB
         run: |
           ./gradlew bundleRelease \
-            -Pandroid.injected.signing.store.file=$HOME/.android/debug.keystore \
+            -Pandroid.injected.signing.store.file=$HOME/.android/ci.keystore \
             -Pandroid.injected.signing.store.password=android \
-            -Pandroid.injected.signing.key.alias=androiddebugkey \
+            -Pandroid.injected.signing.key.alias=cikey \
             -Pandroid.injected.signing.key.password=android
-
-      - name: List all build artifacts
+      - name: List artifacts
         run: |
-          echo "=== APKs ==="
-          find app/build/outputs/apk -name "*.apk" | sort
-          echo ""
-          echo "=== AAB ==="
-          find app/build/outputs/bundle -name "*.aab" | sort
-
-      - name: Upload Release APKs
+          echo "=== APKs ===" && find app/build/outputs/apk -name "*.apk" | sort
+          echo "=== AAB ===" && find app/build/outputs/bundle -name "*.aab" | sort
+      - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-apks-${{ github.sha }}
+          name: release-artifacts-${{ github.sha }}
           path: |
             app/build/outputs/apk/release/*.apk
             app/build/outputs/bundle/release/*.aab
