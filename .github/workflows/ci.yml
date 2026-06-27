@@ -18,6 +18,10 @@ jobs:
   build:
     name: Build Debug APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      gists: write
     steps:
       - uses: actions/checkout@v4
 
@@ -33,46 +37,44 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Gradle version & project info
-        run: |
-          ./gradlew --version
-          echo "=== File structure ==="
-          ls -la gradle/
-          echo "=== settings.gradle.kts ==="
-          cat settings.gradle.kts
-          echo "=== build-logic/settings.gradle.kts ==="
-          cat build-logic/settings.gradle.kts
-
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        id: gradle_build
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee /tmp/build.log
+        continue-on-error: true
+
+      - name: Upload log as Gist on failure
+        if: steps.gradle_build.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # extract last 300 lines — the important part
+          TAIL=$(tail -300 /tmp/build.log)
+          # create gist via API
+          PAYLOAD=$(jq -n \
+            --arg desc "Build failure on ${{ github.sha }}" \
+            --arg content "$TAIL" \
+            '{description: $desc, public: false, files: {"build-error.txt": {content: $content}}}')
+          GIST_URL=$(curl -s -X POST \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            https://api.github.com/gists \
+            -d "$PAYLOAD" | jq -r '.id')
+          echo "GIST_ID=$GIST_URL" >> $GITHUB_ENV
+          echo "::error::Build failed. Gist ID: $GIST_URL"
+
+      - name: Fail if build failed
+        if: steps.gradle_build.outcome == 'failure'
+        run: exit 1
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
-        if: success()
+        if: steps.gradle_build.outcome == 'success'
         with:
           name: debug-apk-${{ github.sha }}
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 14
-
-      - name: Post error as issue comment
-        uses: actions/github-script@v7
-        if: failure()
-        with:
-          script: |
-            const fs = require('fs');
-            const { execSync } = require('child_process');
-            let log = '';
-            try {
-              log = execSync('tail -200 /tmp/gradle_out.txt 2>/dev/null || echo "no log file"').toString();
-            } catch(e) {
-              log = 'Could not read build log: ' + e.message;
-            }
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `Build failure on ${context.sha.substring(0,8)}`,
-              body: `## Build Failed\n\nCommit: ${context.sha}\n\n\`\`\`\n${log.substring(0, 60000)}\n\`\`\``
-            });
 
   unit-tests:
     name: Unit Tests
@@ -114,7 +116,7 @@ jobs:
             -storepass android -alias cikey -keypass android \
             -keyalg RSA -keysize 2048 -validity 365 \
             -dname "CN=CI,O=NetGuard,C=US" -noprompt 2>/dev/null
-      - name: Build Release APKs (Universal + per-ABI)
+      - name: Build Release APKs (Universal + arm64 + arm32 + x86_64 + x86)
         run: |
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$HOME/.android/ci.keystore \
@@ -128,10 +130,10 @@ jobs:
             -Pandroid.injected.signing.store.password=android \
             -Pandroid.injected.signing.key.alias=cikey \
             -Pandroid.injected.signing.key.password=android
-      - name: List all build artifacts
+      - name: List APKs
         run: |
-          echo "=== APKs ===" && find app/build/outputs/apk -name "*.apk" -exec ls -lh {} \;
-          echo "=== AAB ===" && find app/build/outputs/bundle -name "*.aab" -exec ls -lh {} \;
+          echo "=== Release APKs ===" && find app/build/outputs/apk/release -name "*.apk" -exec ls -lh {} \;
+          echo "=== AAB ===" && find app/build/outputs/bundle/release -name "*.aab" -exec ls -lh {} \;
       - uses: actions/upload-artifact@v4
         with:
           name: release-artifacts-${{ github.sha }}

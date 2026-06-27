@@ -14,6 +14,11 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 }
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.incremental", "true")
+}
+
 dependencies {
     implementation(project(":core:core-domain"))
     implementation(libs.androidx.room.runtime)

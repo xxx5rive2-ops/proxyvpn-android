@@ -20,5 +20,7 @@ dependencies {
     implementation(libs.bundles.compose)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.splashscreen)
+    // Material Design (XML themes + Compose Material3)
+    implementation(libs.material)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
