@@ -4,26 +4,29 @@
     android:height="200dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
     <!-- Shield body -->
     <path
         android:fillColor="#1565C0"
         android:pathData="M54,10 L84,24 L84,52 C84,70 70,82 54,88 C38,82 24,70 24,52 L24,24 Z"/>
-    <!-- Shield inner -->
+
+    <!-- Shield inner background -->
     <path
         android:fillColor="#0D1117"
         android:pathData="M54,20 L78,32 L78,52 C78,66 66,76 54,81 C42,76 30,66 30,52 L30,32 Z"/>
-    <!-- Eye center -->
+
+    <!-- Teal radar eye shape (path-based oval) -->
     <path
         android:fillColor="#00838F"
-        android:pathData="M54,44 m-10,0 a10,8 0 1,0 20,0 a10,8 0 1,0 -20,0"/>
-    <circle
-        android:fillColor="#E0F7FA"
-        android:cx="54"
-        android:cy="44"
-        android:r="4"/>
-    <circle
+        android:pathData="M64,44 C64,49.52 59.52,54 54,54 C48.48,54 44,49.52 44,44 C44,38.48 48.48,34 54,34 C59.52,34 64,38.48 64,44 Z"/>
+
+    <!-- Dark pupil -->
+    <path
         android:fillColor="#0D1117"
-        android:cx="54"
-        android:cy="44"
-        android:r="2"/>
+        android:pathData="M58,44 C58,46.21 56.21,48 54,48 C51.79,48 50,46.21 50,44 C50,41.79 51.79,40 54,40 C56.21,40 58,41.79 58,44 Z"/>
+
+    <!-- White highlight -->
+    <path
+        android:fillColor="#E0F7FA"
+        android:pathData="M55,42 C55,43.1 54.1,44 53,44 C51.9,44 51,43.1 51,42 C51,40.9 51.9,40 53,40 C54.1,40 55,40.9 55,42 Z"/>
 </vector>
