@@ -9,13 +9,22 @@ except:
     log = 'No build log found'
 
 lines = log.splitlines()
-error_idx = next((i for i, l in enumerate(lines)
-    if any(k in l for k in ['error:', 'FAILURE:', 'Exception', 'BUILD FAILED', 'Unresolved'])), None)
 
-if error_idx is not None:
-    snippet = '\n'.join(lines[max(0, error_idx - 5):error_idx + 80])
+# Find Kotlin compiler error (most specific)
+kotlin_errors = [i for i, l in enumerate(lines)
+    if 'error:' in l.lower() and ('.kt:' in l or 'Unresolved' in l or 'None of the following' in l)]
+
+if kotlin_errors:
+    idx = kotlin_errors[0]
+    snippet = '\n'.join(lines[max(0, idx - 2):idx + 30])
 else:
-    snippet = '\n'.join(lines[-100:])
+    # Fall back to FAILURE section
+    error_idx = next((i for i, l in enumerate(lines)
+        if any(k in l for k in ['FAILURE:', 'BUILD FAILED', '> A failure'])), None)
+    if error_idx is not None:
+        snippet = '\n'.join(lines[max(0, error_idx - 5):error_idx + 60])
+    else:
+        snippet = '\n'.join(lines[-100:])
 
 run_num = os.environ.get('RUN_NUM', '?')
 repo = os.environ.get('REPO', '')
@@ -47,6 +56,3 @@ try:
     print(f'Release created: id={d.get("id")} tag={d.get("tag_name")}')
 except Exception as e:
     print(f'Error: {e}', file=sys.stderr)
-    # print raw response if available
-    if hasattr(e, 'read'):
-        print(e.read().decode(), file=sys.stderr)

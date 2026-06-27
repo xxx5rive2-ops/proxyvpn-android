@@ -27,7 +27,7 @@ jobs:
       - run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace 2>&1 | tee /tmp/build.log ; exit ${PIPESTATUS[0]}
+        run: ./gradlew assembleDebug --stacktrace --info 2>&1 | tee /tmp/build.log ; exit ${PIPESTATUS[0]}
 
       - name: Write log to Step Summary
         if: always()
