@@ -2,139 +2,93 @@ package app.netguard.engine.dns
 
 import java.net.Inet4Address
 import java.net.InetAddress
+import java.util.LinkedList
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * FakeIpManager — manages the Fake-IP pool for domain-based routing.
  *
- * Fake-IP mode allows domain-based routing decisions even for apps that
- * perform DNS resolution before connecting. Without Fake-IP, we would
- * only see the resolved IP address and lose the domain information.
+ * Assigns synthetic IPs from 198.18.0.0/15 (RFC 2544 benchmark range)
+ * to domain names, enabling domain-based routing for IP connections.
  *
- * How it works:
- * 1. App queries DNS for "mail.google.com"
- * 2. Our DNS engine returns a fake IP: 198.18.1.42 (from pool)
- * 3. Bidirectional mapping is stored: 198.18.1.42 ↔ "mail.google.com"
- * 4. App connects to 198.18.1.42
- * 5. Rule engine looks up 198.18.1.42 → "mail.google.com" → apply domain rules
- * 6. Proxy connects to actual "mail.google.com" (domain-based, no local resolution)
- *
- * Pool: 198.18.0.0/15 (RFC 2544 — benchmarking, never routed on internet)
- *   Total addresses: 131,072
- *   Practical limit: ~50,000 concurrent domains (with TTL eviction)
- *
- * LRU eviction: when pool full, oldest mapping is evicted.
- *
- * Thread safety: fully thread-safe via ConcurrentHashMap + AtomicInteger.
+ * Thread safety: synchronized on [lock] for mutation operations.
  */
 class FakeIpManager(
     private val baseAddress: Int = FAKE_IP_BASE,
     private val poolSize: Int = DEFAULT_POOL_SIZE,
 ) {
-    // ip → domain
-    private val ipToDomain = ConcurrentHashMap<Int, String>(poolSize)
-    // domain → ip
-    private val domainToIp = ConcurrentHashMap<String, Int>(poolSize)
-    // LRU tracking (simplified — in production use LinkedHashMap with accessOrder)
-    private val allocationOrder = ArrayDeque<Int>(poolSize)
-    private val counter = AtomicInteger(0)
-    private val lock = Any()
+    private val ipToDomain  = ConcurrentHashMap<Int, String>(poolSize)
+    private val domainToIp  = ConcurrentHashMap<String, Int>(poolSize)
+    // LinkedList avoids remove(index) ambiguity — use removeFirstOccurrence(element)
+    private val allocOrder  = LinkedList<Int>()
+    private val counter     = AtomicInteger(0)
+    private val lock        = Any()
 
-    /**
-     * Assign a fake IP for [domain], or return the existing one.
-     *
-     * @return InetAddress from the fake-IP pool
-     */
+    /** Assign a fake IP for [domain], or return the existing assignment. */
     fun getOrAssign(domain: String): InetAddress {
-        val normalizedDomain = domain.lowercase().trimEnd('.')
-
-        // Fast path: already assigned
-        domainToIp[normalizedDomain]?.let { ip ->
-            return intToAddress(ip)
-        }
-
-        // Slow path: assign new IP
+        val normalized = domain.lowercase().trimEnd('.')
+        domainToIp[normalized]?.let { return intToAddress(it) }
         synchronized(lock) {
-            // Double-check after acquiring lock
-            domainToIp[normalizedDomain]?.let { return intToAddress(it) }
-
-            // Evict if pool is full
-            if (ipToDomain.size >= poolSize) {
-                evictOldest()
-            }
-
-            // Assign next IP from pool (wraps around)
-            val offset = counter.getAndIncrement() % poolSize
-            val ip = baseAddress + offset
-
-            ipToDomain[ip] = normalizedDomain
-            domainToIp[normalizedDomain] = ip
-            allocationOrder.addLast(ip)
-
+            domainToIp[normalized]?.let { return intToAddress(it) }
+            if (ipToDomain.size >= poolSize) evictOldest()
+            val ip = baseAddress + (counter.getAndIncrement() % poolSize)
+            ipToDomain[ip] = normalized
+            domainToIp[normalized] = ip
+            allocOrder.addLast(ip)
             return intToAddress(ip)
         }
     }
 
-    /**
-     * Look up the original domain for a fake IP.
-     * Returns null if [ip] is not a fake IP or mapping has been evicted.
-     */
+    /** Look up the original domain for a Fake-IP address. Returns null if not a fake IP. */
     fun lookupDomain(ip: InetAddress): String? {
         if (!isFakeIp(ip)) return null
-        val intIp = addressToInt(ip)
-        return ipToDomain[intIp]
+        return ipToDomain[addressToInt(ip)]
     }
 
-    /**
-     * Check if an IP address is in the fake-IP pool.
-     */
+    /** Returns true if [ip] is in the Fake-IP pool range. */
     fun isFakeIp(ip: InetAddress): Boolean {
         if (ip !is Inet4Address) return false
         val intIp = addressToInt(ip)
         return intIp in baseAddress until (baseAddress + poolSize)
     }
 
-    /**
-     * Remove a mapping (called when TTL expires).
-     */
+    /** Remove a mapping (e.g. when TTL expires). */
     fun evict(domain: String) {
         synchronized(lock) {
             val ip = domainToIp.remove(domain) ?: return
             ipToDomain.remove(ip)
-            allocationOrder.remove(ip)
+            allocOrder.removeFirstOccurrence(ip)  // LinkedList — no ambiguity
         }
     }
 
-    /** Current number of active mappings */
+    /** Current number of active mappings. */
     val size: Int get() = ipToDomain.size
 
     private fun evictOldest() {
-        val oldest = allocationOrder.removeFirstOrNull() ?: return
+        val oldest = allocOrder.pollFirst() ?: return
         val domain = ipToDomain.remove(oldest)
         if (domain != null) domainToIp.remove(domain)
     }
 
-    private fun intToAddress(ip: Int): InetAddress {
-        val bytes = byteArrayOf(
+    private fun intToAddress(ip: Int): InetAddress = InetAddress.getByAddress(
+        byteArrayOf(
             (ip shr 24 and 0xFF).toByte(),
             (ip shr 16 and 0xFF).toByte(),
-            (ip shr 8 and 0xFF).toByte(),
-            (ip and 0xFF).toByte(),
+            (ip shr 8  and 0xFF).toByte(),
+            (ip        and 0xFF).toByte(),
         )
-        return InetAddress.getByAddress(bytes)
-    }
+    )
 
     private fun addressToInt(ip: InetAddress): Int {
-        val bytes = ip.address
-        return (bytes[0].toInt() and 0xFF shl 24) or
-               (bytes[1].toInt() and 0xFF shl 16) or
-               (bytes[2].toInt() and 0xFF shl 8) or
-               (bytes[3].toInt() and 0xFF)
+        val b = ip.address
+        return (b[0].toInt() and 0xFF shl 24) or
+               (b[1].toInt() and 0xFF shl 16) or
+               (b[2].toInt() and 0xFF shl 8)  or
+               (b[3].toInt() and 0xFF)
     }
 
     companion object {
-        // 198.18.0.0 as integer
         val FAKE_IP_BASE: Int = (198 shl 24) or (18 shl 16)
         const val DEFAULT_POOL_SIZE = 65536
     }
