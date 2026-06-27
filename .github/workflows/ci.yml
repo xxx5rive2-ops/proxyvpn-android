@@ -26,14 +26,23 @@ jobs:
       - run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace 2>&1 | tee /tmp/build.log ; exit ${PIPESTATUS[0]}
+
+      - name: Upload build log (always)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-log-${{ github.run_number }}
+          path: /tmp/build.log
+          retention-days: 7
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: debug-apk
+          name: debug-apk-${{ github.run_number }}
           path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
 
   unit-tests:
     runs-on: ubuntu-latest
@@ -47,6 +56,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
       - run: ./gradlew testDebugUnitTest --continue
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ github.run_number }}
+          path: '**/build/reports/tests/'
 
   release-build:
     runs-on: ubuntu-latest
@@ -68,7 +82,7 @@ jobs:
             -storepass android -alias cikey -keypass android \
             -keyalg RSA -keysize 2048 -validity 365 \
             -dname "CN=CI,O=NetGuard,C=US" -noprompt 2>/dev/null
-      - name: Build Release APKs
+      - name: Build Release APKs (Universal + arm64 + arm32 + x86_64 + x86)
         run: |
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$HOME/.android/ci.keystore \
@@ -82,13 +96,13 @@ jobs:
             -Pandroid.injected.signing.store.password=android \
             -Pandroid.injected.signing.key.alias=cikey \
             -Pandroid.injected.signing.key.password=android
-      - name: List outputs
+      - name: List all artifacts
         run: |
-          find app/build/outputs/apk/release -name "*.apk" -exec ls -lh {} \;
-          find app/build/outputs/bundle/release -name "*.aab" -exec ls -lh {} \;
+          echo "=== APKs ===" && find app/build/outputs/apk/release -name "*.apk" -exec ls -lh {} \;
+          echo "=== AAB ===" && find app/build/outputs/bundle/release -name "*.aab" -exec ls -lh {} \;
       - uses: actions/upload-artifact@v4
         with:
-          name: release-artifacts
+          name: release-artifacts-${{ github.run_number }}
           path: |
             app/build/outputs/apk/release/*.apk
             app/build/outputs/bundle/release/*.aab
