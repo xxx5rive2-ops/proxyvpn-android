@@ -19,6 +19,11 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
     }
+    versionCatalogs {
+        create("libs") {
+            from(files("gradle/netguard.versions.toml"))
+        }
+    }
 }
 
 rootProject.name = "NetGuardPro"
