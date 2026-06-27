@@ -28,13 +28,28 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace 2>&1 | tee /tmp/build.log ; exit ${PIPESTATUS[0]}
 
-      - name: Upload build log (always)
-        uses: actions/upload-artifact@v4
-        if: always()
+      - name: Post error to commit comment
+        if: failure()
+        uses: actions/github-script@v7
         with:
-          name: build-log-${{ github.run_number }}
-          path: /tmp/build.log
-          retention-days: 7
+          script: |
+            const fs = require('fs');
+            const log = fs.readFileSync('/tmp/build.log', 'utf8');
+            // Extract only the error section
+            const lines = log.split('\n');
+            const errorStart = lines.findIndex(l => 
+              l.includes('FAILURE') || l.includes('error:') || l.includes('Exception'));
+            const errorLines = errorStart >= 0 
+              ? lines.slice(Math.max(0, errorStart - 5), errorStart + 80)
+              : lines.slice(-100);
+            const errorText = errorLines.join('\n');
+            
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: `## ❌ Build Failed (Run #${{ github.run_number }})\n\`\`\`\n${errorText.substring(0, 65000)}\n\`\`\``
+            });
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -74,7 +89,7 @@ jobs:
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
-      - name: Setup keystore
+      - name: Setup CI keystore
         run: |
           mkdir -p ~/.android
           keytool -genkeypair \
@@ -96,10 +111,10 @@ jobs:
             -Pandroid.injected.signing.store.password=android \
             -Pandroid.injected.signing.key.alias=cikey \
             -Pandroid.injected.signing.key.password=android
-      - name: List all artifacts
+      - name: List all outputs
         run: |
-          echo "=== APKs ===" && find app/build/outputs/apk/release -name "*.apk" -exec ls -lh {} \;
-          echo "=== AAB ===" && find app/build/outputs/bundle/release -name "*.aab" -exec ls -lh {} \;
+          find app/build/outputs/apk/release -name "*.apk" -exec ls -lh {} \;
+          find app/build/outputs/bundle/release -name "*.aab" -exec ls -lh {} \;
       - uses: actions/upload-artifact@v4
         with:
           name: release-artifacts-${{ github.run_number }}
