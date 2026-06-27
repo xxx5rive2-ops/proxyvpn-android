@@ -15,37 +15,64 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
-
       - uses: gradle/actions/setup-gradle@v4
-
       - run: chmod +x gradlew
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace 2>&1 | tee /tmp/build.log ; exit ${PIPESTATUS[0]}
 
-      - name: Post error as commit comment via curl
-        if: failure()
+      - name: Post log to GitHub Release
+        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SHA: ${{ github.sha }}
-          RUN: ${{ github.run_number }}
         run: |
-          TAIL=$(tail -120 /tmp/build.log | sed 's/`/\\`/g' | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
-          BODY="## Build Failed — Run #${RUN}\n\`\`\`\n${TAIL}\n\`\`\`"
-          curl -s -X POST \
-            -H "Authorization: token ${GH_TOKEN}" \
-            -H "Content-Type: application/json" \
-            "https://api.github.com/repos/${{ github.repository }}/commits/${SHA}/comments" \
-            -d "{\"body\":\"${BODY}\"}" | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-print('Comment posted:', d.get('id','ERROR'), d.get('message',''))
-"
+          # Extract key lines from log
+          python3 - << 'PYEOF'
+import subprocess, json, urllib.request, os, sys
+
+log = open('/tmp/build.log').read()
+lines = log.splitlines()
+
+# Find error section
+error_idx = next((i for i,l in enumerate(lines)
+    if any(k in l for k in ['error:', 'FAILURE:', 'Exception', 'BUILD FAILED'])), None)
+
+if error_idx is not None:
+    snippet = '\n'.join(lines[max(0,error_idx-3):error_idx+60])
+else:
+    snippet = '\n'.join(lines[-80:])
+
+tag = 'build-log-${{ github.run_number }}'
+body = f'Build log Run #${{ github.run_number }}\n\n```\n{snippet[:60000]}\n```'
+
+# Create release with log embedded
+payload = json.dumps({
+    'tag_name': tag,
+    'name': f'Build Log #${{ github.run_number }}',
+    'body': body,
+    'draft': True,
+    'prerelease': True
+}).encode()
+
+req = urllib.request.Request(
+    'https://api.github.com/repos/${{ github.repository }}/releases',
+    data=payload,
+    headers={
+        'Authorization': f'token {os.environ["GH_TOKEN"]}',
+        'Content-Type': 'application/json'
+    }
+)
+try:
+    resp = urllib.request.urlopen(req)
+    d = json.loads(resp.read())
+    print(f'Release created: {d.get("id")} tag={d.get("tag_name")}')
+except Exception as e:
+    print(f'Failed: {e}')
+PYEOF
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -53,7 +80,6 @@ print('Comment posted:', d.get('id','ERROR'), d.get('message',''))
         with:
           name: debug-apk-${{ github.run_number }}
           path: app/build/outputs/apk/debug/*.apk
-          retention-days: 14
 
   unit-tests:
     runs-on: ubuntu-latest
@@ -67,11 +93,6 @@ print('Comment posted:', d.get('id','ERROR'), d.get('message',''))
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
       - run: ./gradlew testDebugUnitTest --continue
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-${{ github.run_number }}
-          path: '**/build/reports/tests/'
 
   release-build:
     runs-on: ubuntu-latest
@@ -93,7 +114,7 @@ print('Comment posted:', d.get('id','ERROR'), d.get('message',''))
             -storepass android -alias cikey -keypass android \
             -keyalg RSA -keysize 2048 -validity 365 \
             -dname "CN=CI,O=NetGuard,C=US" -noprompt 2>/dev/null
-      - name: Build Release APKs (Universal + arm64 + arm32 + x86_64 + x86)
+      - name: Build Release APKs
         run: |
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$HOME/.android/ci.keystore \
